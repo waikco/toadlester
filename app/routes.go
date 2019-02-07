@@ -18,7 +18,7 @@ func (a *App) Health(w http.ResponseWriter, r *http.Request) {
 
 	//Report on database status
 	if a.AppStorage != nil {
-		err := a.AppStorage.Ping()
+		err := a.AppStorage.Healthy()
 
 		if err == nil {
 			Health.DatabaseStatus = "connected"

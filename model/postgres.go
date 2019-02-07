@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	_ "github.com/lib/pq"
+
 	"github.com/javking07/toadlester/conf"
 )
 
@@ -62,5 +64,13 @@ func (p *PostgresStorage) Update(itemName string, payload interface{}) error {
 }
 
 func (p *PostgresStorage) Delete(itemName string) error {
+	return nil
+}
+
+func (p *PostgresStorage) Healthy() error {
+	err := p.database.Ping()
+	if err != nil {
+		return err
+	}
 	return nil
 }

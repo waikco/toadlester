@@ -47,6 +47,7 @@ type Storage interface {
 	Insert(string, interface{}) error
 	Update(string, interface{}) error
 	Delete(string) error
+	Healthy() error
 }
 
 func (d *Data) Set(storage Storage, payload interface{}) error {
