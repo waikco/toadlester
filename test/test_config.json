@@ -1,0 +1,26 @@
+{
+  "server": {
+    "port": "8080",
+    "cert": "certs/cert.crt",
+    "key": "certs/cert.key",
+    "tls": false
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "user",
+    "password": "password",
+    "databaseName": "tests",
+    "sslMode": "disable"
+  },
+  "cache": {
+    "size": 1000000
+  },
+  "logging": {
+    "level": "info"
+  },
+  "timer": {
+    "interval": "1s"
+  },
+  "sleep": "3s"
+}
