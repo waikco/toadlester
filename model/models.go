@@ -1,17 +1,26 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 )
 
 type Data struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	//Data json.RawMessage `json:"data"` // or could be []interface{}
-	Data []interface{} `json:"data"`
+	ID   string          `json:"id"`
+	Name string          `json:"name"`
+	Data json.RawMessage `json:"data"` // or could be []interface{}
+	//Data []interface{} `json:"data"`
 }
 
-type LoadTestData struct {
+type LoadTest struct {
+	Name     string        `json:"name"`
+	Method   string        `json:"method"`
+	Url      string        `json:"url"`
+	Duration time.Duration `json:"duration"`
+	TPS      uint64        `json:"tps"`
+}
+
+type LoadTestResults struct {
 	Latencies struct {
 		Total   int `json:"total"`
 		Mean    int `json:"mean"`
@@ -44,8 +53,8 @@ type LoadTestData struct {
 
 type Storage interface {
 	Select(string) error
-	Insert(string, interface{}) error
-	Update(string, interface{}) error
+	Insert(string, []byte) error
+	Update(string, []byte) error
 	Delete(string) error
 	Healthy() error
 }
