@@ -93,7 +93,8 @@ func initConfig() {
 
 		// Search config in home directory with name ".toadlester" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".toadlester")
+		viper.AddConfigPath(".")
+		viper.SetConfigName("config")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

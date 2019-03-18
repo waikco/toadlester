@@ -3,8 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/javking07/toadlester/model"
 )
 
 func (a *App) Health(w http.ResponseWriter, r *http.Request) {
@@ -50,11 +53,35 @@ func (a *App) WithTracing(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
+	var payload model.LoadTest
+	requestBody, err := ioutil.ReadAll(r.Body)
 
-	var payload TestInfo
-	body := r.Body
-	if reqbody, err := ioutil.ReadAll(body); err != nil {
-		json.Unmarshal(reqbody, payload)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "error reading body")
+		return
+	}
+
+	err = json.Unmarshal(requestBody, &payload)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error unmarshalling body: %s", err.Error()))
+		return
+	}
+
+	// add to database, then cache
+	if err := a.AppStorage.Insert(payload.Name, requestBody); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "error setting db value"+err.Error())
+		return
+	} else {
+		err = a.AppCache.Set([]byte(payload.Name), requestBody, 3600)
+		if err != nil {
+			a.AppLogger.Error().Msg(err.Error())
+			respondWithError(w, http.StatusInternalServerError, "error setting cache value")
+			return
+		} else {
+			respondWithJSON(w, http.StatusCreated, fmt.Sprintf(" test %s added to queu", payload.Name))
+			return
+		}
 	}
 
 }
@@ -62,16 +89,16 @@ func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 // todo adjust interface to return data and finish this to get back data
 func (a *App) GetTest(w http.ResponseWriter, r *http.Request) {
 
-	var payload TestInfo
+	var payload model.LoadTest
 	body := r.Body
-	if reqbody, err := ioutil.ReadAll(body); err != nil {
-		json.Unmarshal(reqbody, payload)
+	if requestBody, err := ioutil.ReadAll(body); err != nil {
+		json.Unmarshal(requestBody, &payload)
 	} else {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	if err := a.AppStorage.Select(payload.name); err != nil {
+	if err := a.AppStorage.Select(payload.Name); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	} else {
