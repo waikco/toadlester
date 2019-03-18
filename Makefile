@@ -10,7 +10,11 @@ build: go-build
 
 go-build:
 	@echo "Building for native..."
-	@CGO_ENABLED=0 go build -i -ldflags='-X "git.target.com/api-platform/toadlester/api.version=$(TOADLESTER_VERSION)" -X "git.target.com/api-platform/toadlester/api.buildDateTime=$(TOADLESTER_BUILD_DATE_TIME)" -X "git.target.com/api-platform/toadlester/api.branch=$(TOADLESTER_BRANCH)" -X "git.target.com/api-platform/toadlester/api.revision=$(TOADLESTER_COMMIT)"' -o toadlester .
+	@CGO_ENABLED=0 go build -i -ldflags='-X "git.target.com/api-platform/toadlester/api.version=$(TOADLESTER_VERSION)" -X "git.target.com/api-platform/toadlester/api.buildDateTime=$(TOADLESTER_BUILD_DATE_TIME)" -X "git.target.com/api-platform/toadlester/api.branch=$(TOADLESTER_BRANCH)" -X "git.target.com/api-platform/toadlester/api.revision=$(TOADLESTER_COMMIT)"' -o ./builds/toadlester .
+
+go-build-mac:
+	@echo "Building for mac"
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -i -ldflags='-X "git.target.com/api-platform/toadlester/api.version=$(TOADLESTER_VERSION)" -X "git.target.com/api-platform/toadlester/api.buildDateTime=$(TOADLESTER_BUILD_DATE_TIME)" -X "git.target.com/api-platform/toadlester/api.branch=$(TOADLESTER_BRANCH)" -X "git.target.com/api-platform/toadlester/api.revision=$(TOADLESTER_COMMIT)"' -o ./builds/toadlester-mac .
 
 check-gofmt:
 	@echo "Checking formatting..."

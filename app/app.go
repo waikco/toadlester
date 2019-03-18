@@ -33,7 +33,10 @@ type App struct {
 	AppCache   *freecache.Cache
 	AppLogger  *zerolog.Logger
 	AppConfig  *conf.Config
+	AppChans   map[string]chan struct{}
 }
+
+const timerChannel = "timerChannel"
 
 func (a *App) RunApp() {
 	// bootstrap
@@ -56,9 +59,37 @@ func (a *App) RunApp() {
 	// todo set timer to accept jobs and adjustments to current jobs, from requests coming into server
 	// todo add functionality to export metrics to influx
 
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+	signal.Notify(gracefulStop, syscall.SIGKILL)
+	go func() {
+		sig := <-gracefulStop
+		fmt.Printf("caught sig: %+v", sig)
+		a.AppLogger.Info().Msg("shutting down server")
+		a.AppServer.Shutdown(context.Background())
+		a.AppLogger.Info().Msg("shutting down timer")
+		fmt.Println("Wait for 2 second to finish processing")
+		time.Sleep(2 * time.Second)
+		os.Exit(0)
+	}()
+
 	go a.InitTimer()
 
-	a.AppServer.ListenAndServe()
+	go a.AppServer.ListenAndServe()
+
+	select {
+	case sig := <-gracefulStop:
+		a.AppLogger.Info().Msgf("caught sig: %+v", sig)
+		a.AppLogger.Info().Msg("Wait for 2 second to finish processing")
+		a.AppLogger.Info().Msg("shutting down server")
+		_ = a.AppServer.Shutdown(context.Background())
+		for _, v := range a.AppChans {
+			a.AppLogger.Info().Msgf("shutting down background processes: %s")
+			close(v)
+		}
+		os.Exit(0)
+	}
 
 	//only run app is db connection present
 	//if a.AppStorage != nil {
@@ -67,24 +98,23 @@ func (a *App) RunApp() {
 	//}
 }
 
-func (a *App) InitTimer() {
-	var gracefulStop = make(chan os.Signal)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
+func (a *App) InitChans(done chan struct{}) {
+	appChans := make(map[string]chan struct{})
+	appChans[timerChannel] = make(chan struct{})
+	a.AppChans = appChans
+}
 
+func (a *App) InitTimer() {
 	ticker := time.NewTicker(*a.AppConfig.Timer.Interval)
 
 	a.AppLogger.Info().Msgf("initializing background process to run every: %s", *a.AppConfig.Timer.Interval)
 	for {
 		select {
-		case sig := <-gracefulStop:
-			a.AppLogger.Info().Msgf("caught sig: %+v", sig)
-			a.AppLogger.Info().Msg("Wait for 2 second to finish processing")
-			a.AppLogger.Info().Msg("shutting down server")
-			_ = a.AppServer.Shutdown(context.Background())
-			a.AppLogger.Info().Msg("shutting down background process")
+		case <-a.AppChans[timerChannel]:
+			a.AppLogger.Info().Msg("shutting down timer process")
 			ticker.Stop()
-			os.Exit(0)
+			return
+
 		case t := <-ticker.C:
 			a.AppLogger.Info().Msgf("running job at: %s", t)
 			cachedItems := a.AppCache.NewIterator()
@@ -108,11 +138,19 @@ func (a *App) InitTimer() {
 
 			// run each test
 			for _, test := range tests {
-				fmt.Printf("running test: %+v", test.Name)
-				a.runTest(test)
-				// todo : add test results to
+				a.AppLogger.Info().Msgf("running test: %+v", test)
+				results, err := a.runTest(test)
+				if err != nil {
+					a.AppLogger.Error().Msg(err.Error())
+				} else {
+					a.AppLogger.Info().Msg(string(results))
+					// todo : add test results to database
+					err := a.AppStorage.Insert(test.Name, results)
+					if err != nil {
+						a.AppLogger.Error().Msg(err.Error())
+					}
+				}
 			}
-
 		}
 	}
 
@@ -121,26 +159,32 @@ func (a *App) InitTimer() {
 func (a *App) runTest(test model.LoadTest) ([]byte, error) {
 	// set up test
 	targetURL, _ := url.Parse(test.Url)
-	targets := vegeta.Targets{
-		{
-			Method: test.Method,
-			URL:    targetURL,
-		},
-	}
-	attacker := vegeta.NewAttacker()
-
-	// run test
-	var res vegeta.Results
-
-	for res := range attacker.Attack(targets, test.TPS, test.Duration) {
-		metrics.Add(res)
-	}
-	results, err := vegeta.rep ReportJSON(res)
-
+	targets := vegeta.NewStaticTargeter(vegeta.Target{
+		Method: test.Method,
+		URL:    targetURL.String(),
+	})
+	var duration time.Duration
+	duration, err := time.ParseDuration(test.Duration)
 	if err != nil {
 		return nil, err
 	}
-	return results, nil
+	rate := vegeta.Rate{Freq: test.TPS, Per: duration}
+	attacker := vegeta.NewAttacker()
+	defer attacker.Stop()
+
+	// run test
+	var metrics vegeta.Metrics
+
+	for res := range attacker.Attack(targets, rate, duration, test.Name) {
+		metrics.Add(res)
+	}
+	metrics.Close()
+
+	if jsonMetrics, err := json.Marshal(metrics); err != nil {
+		return nil, err
+	} else {
+		return jsonMetrics, nil
+	}
 }
 
 func (a *App) InitLogger() {

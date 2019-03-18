@@ -20,7 +20,7 @@
     "level": "error"
   },
   "timer": {
-    "interval": "5s"
+    "interval": "60s"
   },
   "sleep": "1s"
 }

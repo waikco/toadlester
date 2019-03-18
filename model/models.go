@@ -13,11 +13,11 @@ type Data struct {
 }
 
 type LoadTest struct {
-	Name     string        `json:"name"`
-	Method   string        `json:"method"`
-	Url      string        `json:"url"`
-	Duration time.Duration `json:"duration"`
-	TPS      uint64        `json:"tps"`
+	Name     string `json:"name"`
+	Method   string `json:"method"`
+	Url      string `json:"url"`
+	Duration string `json:"duration"` // in seconds
+	TPS      int    `json:"tps"`
 }
 
 type LoadTestResults struct {
