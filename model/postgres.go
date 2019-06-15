@@ -2,11 +2,11 @@ package model
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
-	"github.com/rs/zerolog/log"
-
 	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 
 	"github.com/javking07/toadlester/conf"
 )
@@ -17,26 +17,31 @@ type PostgresStorage struct {
 }
 
 func BootstrapPostgres(config *conf.DatabaseConfig) (Storage, error) {
-
 	// connect to database
-	dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
+	dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		config.User, config.Password, config.DatabaseName)
-	db, err := sql.Open("postgres", dbinfo)
+	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	// todo create required tables if they do not exist
-	_, err = db.Exec(CreateTableQuery)
+	// return db connection
+	storage := &PostgresStorage{db, config.DatabaseName}
+	err = storage.Init(CreateTableQuery)
 	if err != nil {
 		return nil, err
 	} else {
 		log.Info().Msg("table presence confirmed")
 	}
-
-	// return db connection
-	storage := &PostgresStorage{db, config.DatabaseName}
 	return storage, nil
+}
+
+func (p *PostgresStorage) Init(query string) error {
+	_, err := p.database.Exec(query)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *PostgresStorage) Insert(itemName string, payload []byte) error {
@@ -49,27 +54,49 @@ func (p *PostgresStorage) Insert(itemName string, payload []byte) error {
 	return nil
 }
 
-func (p *PostgresStorage) Select(itemName string) error {
+func (p *PostgresStorage) SelectAll(count, start int) ([]byte, error) {
+	rows, err := p.database.Query("SELECT id, name, data FROM tests LIMIT  $1 OFFSET $2", count, start)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []interface{}
+	for rows.Next() {
+		var item interface{}
+		err := rows.Scan(&item)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	return json.Marshal(items)
+}
+
+func (p *PostgresStorage) Select(itemId int) ([]byte, error) {
 
 	// Query for data
-	//query := fmt.Sprintf("SELECT data FROM %s where name=?", table)
-	//row, err := session.Query(query, d.Name)
-	//
-	//// If no records found, keep Found field as false and return
-	//if iterable.NumRows() > 0 {
-	//	d.Found = true
-	//} else {
-	//	return nil
-	//}
-	//
-	//// If records found, add to Data field
-	//m := map[string]interface{}{}
-	//for iterable.MapScan(m) {
-	//	d.Data = append(d.Data, m["data"])
-	//	// clear map as required by gocql package
-	//	m = map[string]interface{}{}
-	//}
-	return nil
+	query := `SELECT data FROM tests WHERE name=$1`
+	rows, err := p.database.Query(query, itemID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var items []interface{}
+	for rows.Next() {
+		var item interface{}
+		err := rows.Scan(&item)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	return json.Marshal(items)
 }
 
 func (p *PostgresStorage) Update(itemName string, payload []byte) error {
@@ -85,5 +112,14 @@ func (p *PostgresStorage) Healthy() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (p *PostgresStorage) Purge(table string) error {
+	if _, err := p.database.Exec(fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+		log.Fatal().Msgf("Error purging %s table: %s", table, err.Error())
+	}
+	log.Printf("Purging %s table", table)
+	p.database.Exec(fmt.Sprintf("ALTER SEQUENCE %s_id_seq RESTART WITH 1", table))
 	return nil
 }

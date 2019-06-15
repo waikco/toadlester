@@ -51,7 +51,7 @@ var rootCmd = &cobra.Command{
 		} else {
 			App.AppConfig = config
 		}
-
+		App.Bootstrap()
 		App.RunApp()
 	},
 }

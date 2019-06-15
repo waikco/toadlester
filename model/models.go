@@ -52,10 +52,13 @@ type LoadTestResults struct {
 }
 
 type Storage interface {
-	Select(string) error
+	Init(string) error
+	Select(string) ([]byte, error)
+	SelectAll(int, int) ([]byte, error)
 	Insert(string, []byte) error
 	Update(string, []byte) error
 	Delete(string) error
+	Purge(string) error // deletes all items from table
 	Healthy() error
 }
 
@@ -68,17 +71,27 @@ func (d *Data) Set(storage Storage, payload interface{}) error {
 	return nil
 }
 
-func (d *Data) Get(storage Storage, table string) error {
+func (d *Data) Get(storage Storage) ([]byte, error) {
 
-	err := storage.Select(d.Name)
+	data, err := storage.Select(d.ID)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return data, err
 }
 
-func (d *Data) Change(storage Storage, table string) error {
+func (d *Data) GetAll(storage Storage, start, count int) ([]byte, error) {
+
+	data, err := storage.SelectAll(start, count)
+
+	if err != nil {
+		return nil, err
+	}
+	return data, err
+}
+
+func (d *Data) Change(storage Storage) error {
 	err := storage.Update(d.Name, d.Data)
 
 	if err != nil {

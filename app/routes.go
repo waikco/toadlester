@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/javking07/toadlester/model"
 )
@@ -90,19 +91,46 @@ func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 func (a *App) GetTest(w http.ResponseWriter, r *http.Request) {
 
 	var payload model.LoadTest
-	body := r.Body
-	if requestBody, err := ioutil.ReadAll(body); err != nil {
-		json.Unmarshal(requestBody, &payload)
+	var payloadBytes []byte
+
+	// check cache first
+	if cacheValue, err := a.AppCache.Get([]byte(payload.Name)); err == nil {
+		payloadBytes = cacheValue
+	} else if dbValue, err := a.AppStorage.Select(payload.Name); err == nil {
+		payloadBytes = dbValue
 	} else {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
 	}
 
-	if err := a.AppStorage.Select(payload.Name); err != nil {
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
+	}
+
+	respondWithJSON(w, http.StatusOK, payload)
+}
+
+func (a *App) GetTests(w http.ResponseWriter, r *http.Request) {
+	count, _ := strconv.Atoi(r.FormValue("count"))
+	start, _ := strconv.Atoi(r.FormValue("start"))
+
+	if count > 10 || count < 1 {
+		count = 10
+	}
+
+	if start < 0 {
+		start = 0
+	}
+	// todo flesh out get all tests methods for storage and routes
+	tests, err := a.AppStorage.SelectAll(start, count)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+
+	if len(tests) == 0 {
+		respondWithJSON(w, http.StatusOK, `[]`)
 	} else {
-		respondWithJSON(w, http.StatusOK, payload)
+		respondWithJSON(w, http.StatusOK, tests)
 	}
 
 }

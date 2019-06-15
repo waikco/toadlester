@@ -38,7 +38,7 @@ type App struct {
 
 const timerChannel = "timerChannel"
 
-func (a *App) RunApp() {
+func (a *App) Bootstrap() {
 	// bootstrap
 	log.Info().Msg("bootstrapping app")
 
@@ -54,7 +54,8 @@ func (a *App) RunApp() {
 	}
 	//a.InitClient()
 	a.InitServer()
-
+}
+func (a *App) RunApp() {
 	// Start app by kicking off cron/ticker jobs and running server to take commands
 	// todo set timer to accept jobs and adjustments to current jobs, from requests coming into server
 	// todo add functionality to export metrics to influx
@@ -259,6 +260,8 @@ func (a *App) InitServer() {
 	a.AppRouter.Handle("/toadlester/v1/metrics", promhttp.Handler())
 	a.AppRouter.Get("/toadlester/v1/health", a.Health)
 	a.AppRouter.Post("/toadlester/v1/", a.PostTest)
+	a.AppRouter.Get("/toadlester/v1/{id:[1-9][0-9]}", a.GetTest)
+	a.AppRouter.Get("/toadlester/v1/tests", a.GetTests)
 
 	// Create server
 	addr := fmt.Sprintf(":%s", a.AppConfig.Server.Port)

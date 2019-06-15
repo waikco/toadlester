@@ -2,9 +2,10 @@ module github.com/javking07/toadlester
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae // indirect
+	github.com/bmizerany/perks v0.0.0-20141205001514-d9a9656a3a4b // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/coocood/freecache v1.0.1
+	github.com/dgryski/go-gk v0.0.0-20140819190930-201884a44051 // indirect
 	github.com/go-chi/chi v4.0.1+incompatible
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9 // indirect
@@ -20,8 +21,8 @@ require (
 	github.com/spf13/afero v1.2.1 // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
+	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect
-	github.com/tsenart/go-tsz v0.0.0-20180814235614-0bd30b3df1c3 // indirect
 	github.com/tsenart/vegeta v12.1.0+incompatible
 	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect

@@ -58,7 +58,7 @@ func SaneDefaults() *Config {
 			Port:         5432,
 			User:         "user",
 			Password:     "password",
-			DatabaseName: "testspace",
+			DatabaseName: "test",
 			SslMode:      "disable",
 			SslFactory:   "org.postgresql.ssl.NonValidatingFactory",
 		},
@@ -66,7 +66,7 @@ func SaneDefaults() *Config {
 			Size: 1000 * 1000,
 		},
 		Logging: &LoggingConfig{
-			Level: "WARN",
+			Level: "INFO",
 		},
 		Timer: &TimerConfig{
 			Interval: &backgroundInterval,
