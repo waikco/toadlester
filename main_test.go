@@ -100,6 +100,29 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestPost(t *testing.T) {
+	purgeTable()
+
+	payload := `{
+	"name": "today",
+	"url": "http://example.com",
+	"method": "GET",
+	"duration": "10s",
+	"tps": 100
+}`
+	req := httptest.NewRequest("POST", "/toadlester/v1/", bytes.NewBuffer([]byte(payload)))
+	response := executeRequest(req)
+
+	if response.Code != http.StatusCreated {
+		t.Errorf("got %v want %v", response.Code, http.StatusCreated)
+	}
+
+	expected := `"test added to queue: 1"`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
+}
+
 func TestGetAll(t *testing.T) {
 	purgeTable()
 	addData(2)

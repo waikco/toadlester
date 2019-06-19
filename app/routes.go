@@ -68,7 +68,7 @@ func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "error setting db value"+err.Error())
 		return
 	} else {
-		respondWithJSON(w, http.StatusCreated, fmt.Sprintf(" test added to queu: %d", id))
+		respondWithJSON(w, http.StatusCreated, fmt.Sprintf("test added to queue: %d", id))
 		return
 
 	}
