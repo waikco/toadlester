@@ -56,7 +56,7 @@ type Storage interface {
 	Insert(string, []byte) (int64, error)
 	Select(int) ([]byte, error)
 	SelectAll(int, int) ([]byte, error)
-	Update(int, []byte) error
+	Update(int, Payload) error
 	Delete(int) error
 	Purge(string) error // deletes all items from table
 	Healthy() error

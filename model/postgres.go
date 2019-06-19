@@ -74,7 +74,6 @@ func (p *PostgresStorage) Select(itemId int) ([]byte, error) {
 
 func (p *PostgresStorage) SelectAll(count, start int) ([]byte, error) {
 	rows, err := p.database.Query("SELECT id, name, data FROM tests LIMIT $1 OFFSET $2", count, start)
-	log.Info().Msgf("ran query `SELECT id, name, data FROM tests LIMIT %v OFFSET %v`", count, start)
 	if err != nil {
 		return nil, err
 	}
@@ -89,17 +88,21 @@ func (p *PostgresStorage) SelectAll(count, start int) ([]byte, error) {
 		}
 		payload = append(payload, item)
 	}
-	log.Info().Msgf("payload end %+v", payload)
 
+	if len(payload) == 0 {
+		return nil, sql.ErrNoRows
+	}
 	return json.Marshal(payload)
 }
 
-func (p *PostgresStorage) Update(itemID int, payload []byte) error {
-	return nil
+func (p *PostgresStorage) Update(id int, payload Payload) error {
+	_, err := p.database.Exec("UPDATE tests SET name=$1, data=$2 WHERE id=$3", payload.Name, payload.Data, id)
+	return err
 }
 
-func (p *PostgresStorage) Delete(itemID int) error {
-	return nil
+func (p *PostgresStorage) Delete(id int) error {
+	_, err := p.database.Exec("DELETE FROM tests where id=$1", id)
+	return err
 }
 
 func (p *PostgresStorage) Healthy() error {

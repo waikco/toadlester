@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -113,6 +114,65 @@ func TestGetAll(t *testing.T) {
 	if response.Body.String() != expected {
 		t.Errorf("got %v want %v", response.Body.String(), expected)
 	}
+}
+
+func TestUpdate(t *testing.T) {
+	purgeTable()
+	addData(1)
+	payload := []byte(`{"id":"1","name":"updated","data":{"tps":200,"url":"http://example.com/updates","name":"updated","method":"POST","duration":"30s"}}`)
+	req := httptest.NewRequest("PUT", "/toadlester/v1/tests/1", bytes.NewBuffer(payload))
+	response := executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+
+	//expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	if response.Body.String() != string(payload) {
+		t.Errorf("got %v want %v", response.Body.String(), payload)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	purgeTable()
+	addData(1)
+
+	// confirm presence
+	req := httptest.NewRequest("GET", "/toadlester/v1/tests/1", nil)
+	response := executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
+
+	// delete and confirm result
+	req = httptest.NewRequest("DELETE", "/toadlester/v1/tests/1", nil)
+	response = executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+	expected = `{"result":"success"}`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
+
+	// confirm lack of presence
+	req = httptest.NewRequest("GET", "/toadlester/v1/tests/1", nil)
+	response = executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+	expected = `"[]"`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
+
 }
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {

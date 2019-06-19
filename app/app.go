@@ -90,7 +90,7 @@ func (a *App) RunApp() {
 		a.AppLogger.Info().Msg("shutting down server")
 		_ = a.AppServer.Shutdown(context.Background())
 		for _, v := range a.AppChans {
-			a.AppLogger.Info().Msgf("shutting down background processes: %s")
+			a.AppLogger.Info().Msgf("shutting down background process: %v", v)
 			close(v)
 		}
 		os.Exit(0)
@@ -266,6 +266,8 @@ func (a *App) InitServer() {
 	a.AppRouter.Post("/toadlester/v1/", a.PostTest)
 	a.AppRouter.Get("/toadlester/v1/tests/{testsID}", a.GetTest)
 	a.AppRouter.Get("/toadlester/v1/tests", a.GetTests)
+	a.AppRouter.Put("/toadlester/v1/tests/{testsID}", a.UpdateTest)
+	a.AppRouter.Delete("/toadlester/v1/tests/{testsID}", a.DeleteTest)
 
 	// Create server
 	addr := fmt.Sprintf(":%s", a.AppConfig.Server.Port)

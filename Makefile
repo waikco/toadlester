@@ -34,10 +34,10 @@ check-gofmt:
 	fi
 
 test:
-	@go test -coverprofile=c.out $(GO_PKGS) && go tool cover -func=c.out
+	@go test -v $(GO_PKGS)
 
 functional:
-	@go test -v
+	@go test -v functional/...
 
 benchmark:
-	@go test -bench=.
+	@go test -bench=Bench

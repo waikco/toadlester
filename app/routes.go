@@ -77,7 +77,7 @@ func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 func (a *App) GetTest(w http.ResponseWriter, r *http.Request) {
 	idInt, err := strconv.Atoi(chi.URLParam(r, "testsID"))
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error formatting ID input: %v", idInt))
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error formatting ID input: %v", idInt))
 		log.Error().Msgf("error converting ID: %v", err.Error())
 		return
 	}
@@ -108,7 +108,6 @@ func (a *App) GetTests(w http.ResponseWriter, r *http.Request) {
 	if start < 0 {
 		start = 0
 	}
-	// todo flesh out get all tests methods for storage and routes
 
 	switch dbValue, err := a.AppStorage.SelectAll(count, start); err {
 	case nil:
@@ -120,6 +119,46 @@ func (a *App) GetTests(w http.ResponseWriter, r *http.Request) {
 		}
 	case sql.ErrNoRows:
 		respondWithJSON(w, http.StatusOK, `[]`)
+	default:
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+func (a *App) UpdateTest(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "testsID"))
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error formatting ID input: %v", id))
+		log.Error().Msgf("error converting ID: %v", err.Error())
+		return
+	}
+
+	var p model.Payload
+	if err = json.NewDecoder(r.Body).Decode(&p); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid resquest payload")
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+
+	switch err := a.AppStorage.Update(id, p); err {
+	case nil:
+		respondWithJSON(w, http.StatusOK, p)
+	default:
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+}
+
+func (a *App) DeleteTest(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "testsID"))
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error formatting ID input: %v", id))
+		log.Error().Msgf("error converting ID: %v", err.Error())
+		return
+	}
+
+	switch err := a.AppStorage.Delete(id); err {
+	case nil:
+		respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 	default:
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
