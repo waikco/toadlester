@@ -44,7 +44,7 @@ type LoggingConfig struct {
 
 // SaneDefaults provides base config for testing
 func SaneDefaults() *Config {
-	startupSleep := time.Second * 5
+	startupSleep := time.Second * 1
 	backgroundInterval := time.Second * 60
 	var config = &Config{
 		Server: &ServerConfig{

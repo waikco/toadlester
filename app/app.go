@@ -68,7 +68,7 @@ func (a *App) RunApp() {
 		sig := <-gracefulStop
 		fmt.Printf("caught sig: %+v", sig)
 		a.AppLogger.Info().Msg("shutting down server")
-		a.AppServer.Shutdown(context.Background())
+		_ = a.AppServer.Shutdown(context.Background())
 		a.AppLogger.Info().Msg("shutting down timer")
 		fmt.Println("Wait for 2 second to finish processing")
 		time.Sleep(2 * time.Second)
@@ -77,7 +77,11 @@ func (a *App) RunApp() {
 
 	go a.InitTimer()
 
-	go a.AppServer.ListenAndServe()
+	go func() {
+		if err := a.AppServer.ListenAndServe(); err != nil {
+			log.Fatal().Msg(err.Error())
+		}
+	}()
 
 	select {
 	case sig := <-gracefulStop:
@@ -146,7 +150,7 @@ func (a *App) InitTimer() {
 				} else {
 					a.AppLogger.Info().Msg(string(results))
 					// todo : add test results to database
-					err := a.AppStorage.Insert(test.Name, results)
+					_, err := a.AppStorage.Insert(test.Name, results)
 					if err != nil {
 						a.AppLogger.Error().Msg(err.Error())
 					}
@@ -260,7 +264,7 @@ func (a *App) InitServer() {
 	a.AppRouter.Handle("/toadlester/v1/metrics", promhttp.Handler())
 	a.AppRouter.Get("/toadlester/v1/health", a.Health)
 	a.AppRouter.Post("/toadlester/v1/", a.PostTest)
-	a.AppRouter.Get("/toadlester/v1/{id:[1-9][0-9]}", a.GetTest)
+	a.AppRouter.Get("/toadlester/v1/tests/{testsID}", a.GetTest)
 	a.AppRouter.Get("/toadlester/v1/tests", a.GetTests)
 
 	// Create server

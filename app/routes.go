@@ -1,12 +1,16 @@
 package app
 
 import (
-	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
+
+	"github.com/go-chi/chi"
 
 	"github.com/javking07/toadlester/model"
 )
@@ -44,15 +48,6 @@ func (a *App) Health(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// todo create middleware for capturing trace data on request
-func (a *App) WithTracing(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.Background()
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	}
-}
-
 func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 	var payload model.LoadTest
 	requestBody, err := ioutil.ReadAll(r.Body)
@@ -69,44 +64,37 @@ func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// add to database, then cache
-	if err := a.AppStorage.Insert(payload.Name, requestBody); err != nil {
+	if id, err := a.AppStorage.Insert(payload.Name, requestBody); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error setting db value"+err.Error())
 		return
 	} else {
-		err = a.AppCache.Set([]byte(payload.Name), requestBody, 3600)
-		if err != nil {
-			a.AppLogger.Error().Msg(err.Error())
-			respondWithError(w, http.StatusInternalServerError, "error setting cache value")
-			return
-		} else {
-			respondWithJSON(w, http.StatusCreated, fmt.Sprintf(" test %s added to queu", payload.Name))
-			return
-		}
-	}
+		respondWithJSON(w, http.StatusCreated, fmt.Sprintf(" test added to queu: %d", id))
+		return
 
+	}
 }
 
-// todo adjust interface to return data and finish this to get back data
 func (a *App) GetTest(w http.ResponseWriter, r *http.Request) {
-
-	var payload model.LoadTest
-	var payloadBytes []byte
-
-	// check cache first
-	if cacheValue, err := a.AppCache.Get([]byte(payload.Name)); err == nil {
-		payloadBytes = cacheValue
-	} else if dbValue, err := a.AppStorage.Select(payload.Name); err == nil {
-		payloadBytes = dbValue
-	} else {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+	idInt, err := strconv.Atoi(chi.URLParam(r, "testsID"))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error formatting ID input: %v", idInt))
+		log.Error().Msgf("error converting ID: %v", err.Error())
+		return
 	}
 
-	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+	switch dbValue, err := a.AppStorage.Select(idInt); err {
+	case nil:
+		var payload []model.Payload
+		if err := json.Unmarshal(dbValue, &payload); err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		} else {
+			respondWithJSON(w, http.StatusOK, payload)
+		}
+	case sql.ErrNoRows:
+		respondWithJSON(w, http.StatusOK, `[]`)
+	default:
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-
-	respondWithJSON(w, http.StatusOK, payload)
 }
 
 func (a *App) GetTests(w http.ResponseWriter, r *http.Request) {
@@ -121,16 +109,18 @@ func (a *App) GetTests(w http.ResponseWriter, r *http.Request) {
 		start = 0
 	}
 	// todo flesh out get all tests methods for storage and routes
-	tests, err := a.AppStorage.SelectAll(start, count)
 
-	if err != nil {
+	switch dbValue, err := a.AppStorage.SelectAll(count, start); err {
+	case nil:
+		var payload []model.Payload
+		if err := json.Unmarshal(dbValue, &payload); err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		} else {
+			respondWithJSON(w, http.StatusOK, payload)
+		}
+	case sql.ErrNoRows:
+		respondWithJSON(w, http.StatusOK, `[]`)
+	default:
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-
-	if len(tests) == 0 {
-		respondWithJSON(w, http.StatusOK, `[]`)
-	} else {
-		respondWithJSON(w, http.StatusOK, tests)
-	}
-
 }

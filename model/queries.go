@@ -12,6 +12,3 @@ id SERIAL PRIMARY KEY,
 name TEXT NOT NULL,
 data jsonb
 );`
-
-//HealthQuery is used for health checks to test database connection
-const HealthQuery string = `SELECT 1`

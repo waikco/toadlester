@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/javking07/toadlester/model"
@@ -42,7 +44,8 @@ func TestMain(m *testing.M) {
 	log.Info().Msgf("database ssl status is %s", a.AppConfig.Database.SslMode)
 
 	// table confirmation and cleanup
-	confirmTableExists()
+	confirmTable()
+	purgeTable()
 	defer purgeTable()
 
 	code := m.Run()
@@ -56,29 +59,60 @@ func TestEmptyTable(t *testing.T) {
 	req := httptest.NewRequest("GET", "/toadlester/v1/tests", nil)
 	response := executeRequest(req)
 
-	checkResponseCode(t, http.StatusOK, response.Code)
-	checkResponseBody(t, "[]", response.Body.String())
-
-}
-
-//ConfirmTableexists checks for existence of app database
-func confirmTableExists() {
-	log.Print("confirming table exists...")
-	if err := a.AppStorage.Init(model.TestCreateTableQuery); err != nil {
-		log.Fatal().Msgf("Error creating tests table: " + err.Error())
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
 	}
-	log.Print("database confirmed...")
 
+	if response.Body.String() != `"[]"` {
+		t.Errorf("got %v want %v", response.Body.String(), `"[]"`)
+	}
 }
 
 func TestGetNonExistentTest(t *testing.T) {
 	purgeTable()
 
-	req := httptest.NewRequest("GET", "/toadlester/v1/13", nil)
+	req := httptest.NewRequest("GET", "/toadlester/v1/tests/3", nil)
 	response := executeRequest(req)
 
-	checkResponseCode(t, http.StatusOK, response.Code)
-	checkResponseBody(t, "[]", response.Body.String())
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+
+	if response.Body.String() != `"[]"` {
+		t.Errorf("got %v want %v", response.Body.String(), `"[]"`)
+	}
+}
+
+func TestGet(t *testing.T) {
+	purgeTable()
+	addData(1)
+	req := httptest.NewRequest("GET", "/toadlester/v1/tests/1", nil)
+	response := executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+
+	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
+}
+
+func TestGetAll(t *testing.T) {
+	purgeTable()
+	addData(2)
+	req := httptest.NewRequest("GET", "/toadlester/v1/tests", nil)
+	response := executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+
+	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}},{"id":"2","name":"1","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
 }
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {
@@ -88,19 +122,29 @@ func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 	return rr
 }
 
-func checkResponseCode(t *testing.T, expected, actual int) {
-	if expected != actual {
-		t.Errorf("Expected Status Code:%d | Received Status Code:%d", expected, actual)
+//ConfirmTable checks for existence of app database
+func confirmTable() {
+	log.Print("confirming table exists...")
+	if err := a.AppStorage.Init(model.TestCreateTableQuery); err != nil {
+		log.Fatal().Msgf("Error creating tests table: " + err.Error())
 	}
+	log.Print("database confirmed...")
 }
 
-func checkResponseBody(t *testing.T, expected, actual string) {
-	if expected != actual {
-		t.Errorf("Expected Body:%s | Received Body:%s", expected, actual)
-	}
-}
-
-//PurgeTable deletes items from table
+//purgeTable deletes items from table
 func purgeTable() {
+	if err := a.AppStorage.Purge("tests"); err != nil {
+		log.Error().Msg(err.Error())
+	}
+}
 
+// addData adds dummy entries to database
+func addData(count int) {
+	if count < 1 {
+		count = 1
+	}
+
+	for i := 0; i < count; i++ {
+		a.AppStorage.Insert(strconv.Itoa(i), []byte(fmt.Sprintf(`{"tps": 100, "url": "http://example.com", "name": "today", "method": "GET", "duration": "10s"}`)))
+	}
 }

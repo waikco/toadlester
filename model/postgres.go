@@ -44,66 +44,61 @@ func (p *PostgresStorage) Init(query string) error {
 	return nil
 }
 
-func (p *PostgresStorage) Insert(itemName string, payload []byte) error {
+func (p *PostgresStorage) Insert(itemName string, payload []byte) (int64, error) {
 	query := `INSERT INTO tests (name,data) VALUES ($1,$2)`
-	_, err := p.database.Query(query, itemName, payload)
+	result, err := p.database.Exec(query, itemName, payload)
 
 	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *PostgresStorage) SelectAll(count, start int) ([]byte, error) {
-	rows, err := p.database.Query("SELECT id, name, data FROM tests LIMIT  $1 OFFSET $2", count, start)
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var items []interface{}
-	for rows.Next() {
-		var item interface{}
-		err := rows.Scan(&item)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
+		return 0, err
 	}
 
-	return json.Marshal(items)
+	if id, err := result.RowsAffected(); err != nil {
+		return 0, err
+	} else {
+		return id, nil
+	}
 }
 
 func (p *PostgresStorage) Select(itemId int) ([]byte, error) {
-
-	// Query for data
-	query := `SELECT data FROM tests WHERE name=$1`
-	rows, err := p.database.Query(query, itemID)
+	var data Payload
+	err := p.database.QueryRow(`SELECT id, name, data FROM tests WHERE id=$1`, itemId).Scan(&data.ID, &data.Name, &data.Data)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
-
-	var items []interface{}
-	for rows.Next() {
-		var item interface{}
-		err := rows.Scan(&item)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
+	var items []Payload
+	items = append(items, data)
 
 	return json.Marshal(items)
 }
 
-func (p *PostgresStorage) Update(itemName string, payload []byte) error {
+func (p *PostgresStorage) SelectAll(count, start int) ([]byte, error) {
+	rows, err := p.database.Query("SELECT id, name, data FROM tests LIMIT $1 OFFSET $2", count, start)
+	log.Info().Msgf("ran query `SELECT id, name, data FROM tests LIMIT %v OFFSET %v`", count, start)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var payload []Payload
+	for rows.Next() {
+		var item Payload
+		err := rows.Scan(&item.ID, &item.Name, &item.Data)
+		if err != nil {
+			return nil, err
+		}
+		payload = append(payload, item)
+	}
+	log.Info().Msgf("payload end %+v", payload)
+
+	return json.Marshal(payload)
+}
+
+func (p *PostgresStorage) Update(itemID int, payload []byte) error {
 	return nil
 }
 
-func (p *PostgresStorage) Delete(itemName string) error {
+func (p *PostgresStorage) Delete(itemID int) error {
 	return nil
 }
 
@@ -117,9 +112,9 @@ func (p *PostgresStorage) Healthy() error {
 
 func (p *PostgresStorage) Purge(table string) error {
 	if _, err := p.database.Exec(fmt.Sprintf("DELETE FROM %s", table)); err != nil {
-		log.Fatal().Msgf("Error purging %s table: %s", table, err.Error())
+		return fmt.Errorf("Error purging %s table: %v", table, err)
 	}
-	log.Printf("Purging %s table", table)
+	log.Info().Msgf("Purging %s table", table)
 	p.database.Exec(fmt.Sprintf("ALTER SEQUENCE %s_id_seq RESTART WITH 1", table))
 	return nil
 }
