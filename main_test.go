@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -84,22 +86,6 @@ func TestGetNonExistentTest(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
-	purgeTable()
-	addData(1)
-	req := httptest.NewRequest("GET", "/toadlester/v1/tests/1", nil)
-	response := executeRequest(req)
-
-	if response.Code != http.StatusOK {
-		t.Errorf("got %v want %v", response.Code, http.StatusOK)
-	}
-
-	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
-	if response.Body.String() != expected {
-		t.Errorf("got %v want %v", response.Body.String(), expected)
-	}
-}
-
 func TestPost(t *testing.T) {
 	purgeTable()
 
@@ -123,17 +109,17 @@ func TestPost(t *testing.T) {
 	}
 }
 
-func TestGetAll(t *testing.T) {
+func TestGet(t *testing.T) {
 	purgeTable()
-	addData(2)
-	req := httptest.NewRequest("GET", "/toadlester/v1/tests", nil)
+	addData(1)
+	req := httptest.NewRequest("GET", "/toadlester/v1/tests/1", nil)
 	response := executeRequest(req)
 
 	if response.Code != http.StatusOK {
 		t.Errorf("got %v want %v", response.Code, http.StatusOK)
 	}
 
-	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}},{"id":"2","name":"1","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
 	if response.Body.String() != expected {
 		t.Errorf("got %v want %v", response.Body.String(), expected)
 	}
@@ -142,17 +128,30 @@ func TestGetAll(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	purgeTable()
 	addData(1)
-	payload := []byte(`{"id":"1","name":"updated","data":{"tps":200,"url":"http://example.com/updates","name":"updated","method":"POST","duration":"30s"}}`)
-	req := httptest.NewRequest("PUT", "/toadlester/v1/tests/1", bytes.NewBuffer(payload))
+
+	req := httptest.NewRequest(http.MethodGet, "/toadlester/v1/tests/1", nil)
 	response := executeRequest(req)
+	var originalTest []model.Payload
+	if err := json.Unmarshal(response.Body.Bytes(), &originalTest); err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+
+	payload := []byte(`{"id":"1","name":"updated","data":{"tps":200,"url":"http://example.com/updates","name":"updated","method":"POST","duration":"30s"}}`)
+	req = httptest.NewRequest("PUT", "/toadlester/v1/tests/1", bytes.NewBuffer(payload))
+	response = executeRequest(req)
+	var updatedTest model.Payload
+	if err := json.Unmarshal(response.Body.Bytes(), &updatedTest); err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
 
 	if response.Code != http.StatusOK {
 		t.Errorf("got %v want %v", response.Code, http.StatusOK)
 	}
 
-	//expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
-	if response.Body.String() != string(payload) {
+	if reflect.DeepEqual(updatedTest, originalTest[0]) {
 		t.Errorf("got %v want %v", response.Body.String(), payload)
+	} else {
+		t.Logf("%+v \n %+v", updatedTest, originalTest[0])
 	}
 }
 
@@ -195,7 +194,22 @@ func TestDelete(t *testing.T) {
 	if response.Body.String() != expected {
 		t.Errorf("got %v want %v", response.Body.String(), expected)
 	}
+}
 
+func TestGetAll(t *testing.T) {
+	purgeTable()
+	addData(2)
+	req := httptest.NewRequest("GET", "/toadlester/v1/tests", nil)
+	response := executeRequest(req)
+
+	if response.Code != http.StatusOK {
+		t.Errorf("got %v want %v", response.Code, http.StatusOK)
+	}
+
+	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}},{"id":"2","name":"1","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	if response.Body.String() != expected {
+		t.Errorf("got %v want %v", response.Body.String(), expected)
+	}
 }
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {
@@ -228,6 +242,10 @@ func addData(count int) {
 	}
 
 	for i := 0; i < count; i++ {
-		a.AppStorage.Insert(strconv.Itoa(i), []byte(fmt.Sprintf(`{"tps": 100, "url": "http://example.com", "name": "today", "method": "GET", "duration": "10s"}`)))
+		_, err := a.AppStorage.Insert(strconv.Itoa(i), []byte(fmt.Sprintf(`{"tps": 100, "url": "http://example.com", "name": "today", "method": "GET", "duration": "10s"}`)))
+		if err != nil {
+			log.Fatal().Msgf("error adding data: %v", err)
+		}
+
 	}
 }

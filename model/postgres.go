@@ -118,6 +118,8 @@ func (p *PostgresStorage) Purge(table string) error {
 		return fmt.Errorf("Error purging %s table: %v", table, err)
 	}
 	log.Info().Msgf("Purging %s table", table)
-	p.database.Exec(fmt.Sprintf("ALTER SEQUENCE %s_id_seq RESTART WITH 1", table))
+	if _, err := p.database.Exec(fmt.Sprintf("ALTER SEQUENCE %s_id_seq RESTART WITH 1", table)); err != nil {
+		return err
+	}
 	return nil
 }

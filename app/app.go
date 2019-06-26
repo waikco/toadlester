@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tsenart/vegeta/lib"
+	vegeta "github.com/tsenart/vegeta/lib"
 
 	"github.com/coocood/freecache"
 	"github.com/go-chi/chi"
@@ -26,14 +26,14 @@ import (
 
 // App ...
 type App struct {
-	AppServer  *http.Server
-	AppClient  *http.Client
-	AppStorage model.Storage
-	AppRouter  *chi.Mux
-	AppCache   *freecache.Cache
-	AppLogger  *zerolog.Logger
-	AppConfig  *conf.Config
-	AppChans   map[string]chan struct{}
+	AppServer   *http.Server
+	AppClient   *http.Client
+	AppStorage  model.Storage
+	AppRouter   *chi.Mux
+	AppCache    *freecache.Cache
+	AppLogger   *zerolog.Logger
+	AppConfig   *conf.Config
+	AppChannels map[string]chan struct{}
 }
 
 const timerChannel = "timerChannel"
@@ -57,7 +57,6 @@ func (a *App) Bootstrap() {
 }
 func (a *App) RunApp() {
 	// Start app by kicking off cron/ticker jobs and running server to take commands
-	// todo set timer to accept jobs and adjustments to current jobs, from requests coming into server
 	// todo add functionality to export metrics to influx
 
 	var gracefulStop = make(chan os.Signal)
@@ -89,7 +88,7 @@ func (a *App) RunApp() {
 		a.AppLogger.Info().Msg("Wait for 2 second to finish processing")
 		a.AppLogger.Info().Msg("shutting down server")
 		_ = a.AppServer.Shutdown(context.Background())
-		for _, v := range a.AppChans {
+		for _, v := range a.AppChannels {
 			a.AppLogger.Info().Msgf("shutting down background process: %v", v)
 			close(v)
 		}
@@ -103,93 +102,93 @@ func (a *App) RunApp() {
 	//}
 }
 
-func (a *App) InitChans(done chan struct{}) {
-	appChans := make(map[string]chan struct{})
-	appChans[timerChannel] = make(chan struct{})
-	a.AppChans = appChans
-}
-
 func (a *App) InitTimer() {
 	ticker := time.NewTicker(*a.AppConfig.Timer.Interval)
 
 	a.AppLogger.Info().Msgf("initializing background process to run every: %s", *a.AppConfig.Timer.Interval)
 	for {
 		select {
-		case <-a.AppChans[timerChannel]:
+		case <-a.AppChannels[timerChannel]:
 			a.AppLogger.Info().Msg("shutting down timer process")
 			ticker.Stop()
 			return
 
 		case t := <-ticker.C:
 			a.AppLogger.Info().Msgf("running job at: %s", t)
-			cachedItems := a.AppCache.NewIterator()
-			var tests []model.LoadTest
-			a.AppLogger.Info().Msg("receiving tests from cache")
-			// grab tests in cache
-			for {
-				if item := cachedItems.Next(); item == nil {
-					break
+
+			// grab payloads in database
+			var payloads []model.Payload
+			b, err := a.AppStorage.SelectAll(10, 0)
+			if err != nil {
+				a.AppLogger.Error().Msgf("error getting payloads: %v", err)
+				continue
+			}
+
+			err = json.Unmarshal(b, &payloads)
+			if err != nil {
+				a.AppLogger.Error().Msgf("error parsing payloads: %v", err)
+			}
+
+			tests := []model.LoadTest{}
+			for _, p := range payloads {
+				if b, err := p.Data.MarshalJSON(); err != nil {
+					log.Error().Msgf("error destructing data from payload: %v", err)
+					continue
 				} else {
-					var nextTest *model.LoadTest
-					err := json.Unmarshal(item.Value, &nextTest)
-					if err != nil {
-						a.AppLogger.Error().Msgf("error unmarshalling test %v: %v", string(item.Key), err.Error())
+					var t model.LoadTest
+					if err := json.Unmarshal(b, &t); err != nil {
+						log.Error().Msgf("error unmarshalling payload: %v", err)
 						continue
 					} else {
-						tests = append(tests, *nextTest)
+						tests = append(tests, t)
 					}
 				}
 			}
 
 			// run each test
 			for _, test := range tests {
-				a.AppLogger.Info().Msgf("running test: %+v", test)
-				results, err := a.runTest(test)
+				a.AppLogger.Info().Msgf("running test: %v", test.Name)
+				results, err := a.RunTest(test)
 				if err != nil {
-					a.AppLogger.Error().Msg(err.Error())
+					a.AppLogger.Error().Msgf("error running test: %v", err)
 				} else {
-					a.AppLogger.Info().Msg(string(results))
+					a.AppLogger.Info().Msgf("%+v", *results)
 					// todo : add test results to database
-					_, err := a.AppStorage.Insert(test.Name, results)
-					if err != nil {
-						a.AppLogger.Error().Msg(err.Error())
-					}
 				}
 			}
 		}
 	}
-
 }
 
-func (a *App) runTest(test model.LoadTest) ([]byte, error) {
+func (a *App) RunTest(test model.LoadTest) (*vegeta.Metrics, error) {
 	// set up test
 	targetURL, _ := url.Parse(test.Url)
 	targets := vegeta.NewStaticTargeter(vegeta.Target{
 		Method: test.Method,
 		URL:    targetURL.String(),
 	})
-	var duration time.Duration
-	duration, err := time.ParseDuration(test.Duration)
-	if err != nil {
-		return nil, err
-	}
-	rate := vegeta.Rate{Freq: test.TPS, Per: duration}
+
+	rate := vegeta.Rate{Freq: test.TPS, Per: time.Second}
 	attacker := vegeta.NewAttacker()
 	defer attacker.Stop()
 
 	// run test
 	var metrics vegeta.Metrics
 
-	for res := range attacker.Attack(targets, rate, duration, test.Name) {
+	for res := range attacker.Attack(targets, rate, test.Duration.Duration, test.Name) {
 		metrics.Add(res)
 	}
 	metrics.Close()
 
-	if jsonMetrics, err := json.Marshal(metrics); err != nil {
-		return nil, err
-	} else {
-		return jsonMetrics, nil
-	}
+	r := vegeta.NewTextReporter(&metrics)
+	a.AppLogger.Info().Msgf("%v", r.Report(os.Stdout))
+	return &metrics, nil
+}
+
+func (a *App) InitChans(done chan struct{}) {
+	appChans := make(map[string]chan struct{})
+	appChans[timerChannel] = make(chan struct{})
+	a.AppChannels = appChans
 }
 
 func (a *App) InitLogger() {
@@ -302,5 +301,5 @@ func (a *App) InitServer() {
 		a.AppServer.TLSConfig = cfg
 	}
 
-	a.AppLogger.Info().Msgf("initialized routes and server on port %+v", a.AppServer)
+	a.AppLogger.Info().Msgf("initialized routes and server on port %v", a.AppServer.Addr)
 }

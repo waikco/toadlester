@@ -17,10 +17,10 @@
     "size": 1000000
   },
   "logging": {
-    "level": "error"
+    "level": "debug"
   },
   "timer": {
-    "interval": "60s"
+    "interval": "10s"
   },
   "sleep": "1s"
 }

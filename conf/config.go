@@ -1,6 +1,8 @@
 package conf
 
-import "time"
+import (
+	"time"
+)
 
 // Config is application config
 type Config struct {
@@ -15,12 +17,12 @@ type Config struct {
 type ServerConfig struct {
 	Port string `json:"port" yaml:"port"`
 	Cert string `json:"cert" yaml:"cert"`
-	Key  string `json:"cert" yaml:"key"`
+	Key  string `json:"key" yaml:"key"`
 	TLS  bool   `json:"tls" yaml:"tls"`
 }
 
 type DatabaseConfig struct {
-	Type         string `json:"type yaml:"type"`
+	Type         string `json:"type" yaml:"type"`
 	Host         string `json:"host" yaml:"host"`
 	Port         int    `json:"port" yaml:"port"`
 	User         string `json:"user" yaml:"user"`
@@ -66,7 +68,7 @@ func SaneDefaults() *Config {
 			Size: 1000 * 1000,
 		},
 		Logging: &LoggingConfig{
-			Level: "INFO",
+			Level: "debug",
 		},
 		Timer: &TimerConfig{
 			Interval: &backgroundInterval,

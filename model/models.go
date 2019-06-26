@@ -13,11 +13,11 @@ type Payload struct {
 }
 
 type LoadTest struct {
-	Name     string `json:"name"`
-	Method   string `json:"method"`
-	Url      string `json:"url"`
-	Duration string `json:"duration"` // in seconds
-	TPS      int    `json:"tps"`
+	Name     string         `json:"name"`
+	Method   string         `json:"method"`
+	Url      string         `json:"url"`
+	Duration CustomDuration `json:"duration"` // in seconds
+	TPS      int            `json:"tps"`
 }
 
 type LoadTestResults struct {
