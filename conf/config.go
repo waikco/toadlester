@@ -12,6 +12,12 @@ type Config struct {
 	Logging  *LoggingConfig  `json:"logging" yaml:"logging"`
 	Sleep    *time.Duration  `json:"sleep" yaml:"sleep"`
 	Timer    *TimerConfig    `json:"timer" yaml:"timer"`
+	Tests    []struct {
+		Name     string         `json:"name"`
+		Duration *time.Duration `json:"duration"` // in seconds
+		TPS      int            `json:"tps"`
+		Target   string         `json:"target"`
+	} `json:"tests" yaml:"tests"`
 }
 
 type ServerConfig struct {

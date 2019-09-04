@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/go-chi/chi"
@@ -49,7 +51,7 @@ func (a *App) Health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
-	var payload model.LoadTest
+	var payload model.LoadTestSimple
 	requestBody, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
@@ -64,7 +66,7 @@ func (a *App) PostTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if id, err := a.AppStorage.Insert(payload.Name, requestBody); err != nil {
+	if id, err := a.AppStorage.Insert(uuid.NewV4().String(), payload.Name, requestBody); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error setting db value"+err.Error())
 		return
 	} else {

@@ -12,12 +12,19 @@ type Payload struct {
 	//Payload interface{} `json:"data"`
 }
 
-type LoadTest struct {
+type LoadTestSimple struct {
 	Name     string         `json:"name"`
 	Method   string         `json:"method"`
 	Url      string         `json:"url"`
 	Duration CustomDuration `json:"duration"` // in seconds
 	TPS      int            `json:"tps"`
+}
+
+type LoadTestComplex struct {
+	Name     string         `json:"name"`
+	Duration CustomDuration `json:"duration"` // in seconds
+	TPS      int            `json:"tps"`
+	Target   string         `json:"target"`
 }
 
 type LoadTestResults struct {
@@ -53,7 +60,7 @@ type LoadTestResults struct {
 
 type Storage interface {
 	Init(string) error
-	Insert(string, []byte) (int64, error)
+	Insert(string, string, []byte) (int64, error)
 	Select(int) ([]byte, error)
 	SelectAll(int, int) ([]byte, error)
 	Update(int, Payload) error

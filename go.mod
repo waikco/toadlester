@@ -7,6 +7,8 @@ require (
 	github.com/coocood/freecache v1.0.1
 	github.com/dgryski/go-gk v0.0.0-20140819190930-201884a44051 // indirect
 	github.com/go-chi/chi v4.0.1+incompatible
+	github.com/gobuffalo/uuid v2.0.5+incompatible // indirect
+	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
@@ -18,6 +20,7 @@ require (
 	github.com/prometheus/common v0.2.0 // indirect
 	github.com/prometheus/procfs v0.0.0-20190129233650-316cf8ccfec5 // indirect
 	github.com/rs/zerolog v1.11.0
+	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/afero v1.2.1 // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1

@@ -36,8 +36,5 @@ check-gofmt:
 test:
 	@go test -v $(GO_PKGS)
 
-functional:
-	@go test -v functional/...
-
 benchmark:
 	@go test -bench=Bench

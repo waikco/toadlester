@@ -22,5 +22,6 @@
   "timer": {
     "interval": "10s"
   },
-  "sleep": "1s"
+  "sleep": "1s",
+  "tests": [{"name":"test1","duration": "10s", "tps": 100, "target": "./testing/target.txt"}]
 }

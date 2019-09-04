@@ -39,7 +39,7 @@ var rootCmd = &cobra.Command{
 		   that can be deployed anywhere a user expects to receive requests from`,
 	Run: func(cmd *cobra.Command, args []string) {
 		viperInstance := viper.GetViper()
-		err := viperInstance.UnmarshalExact(&config)
+		err := viperInstance.Unmarshal(&config)
 		if err != nil {
 			log.Panic().Msgf("error parsing config: %s", err.Error())
 		}

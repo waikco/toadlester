@@ -1,16 +1,19 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
 
 	vegeta "github.com/tsenart/vegeta/lib"
 
@@ -116,66 +119,75 @@ func (a *App) InitTimer() {
 		case t := <-ticker.C:
 			a.AppLogger.Info().Msgf("running job at: %s", t)
 
-			// grab payloads in database
-			var payloads []model.Payload
-			b, err := a.AppStorage.SelectAll(10, 0)
-			if err != nil {
-				a.AppLogger.Error().Msgf("error getting payloads: %v", err)
-				continue
-			}
-
-			err = json.Unmarshal(b, &payloads)
-			if err != nil {
-				a.AppLogger.Error().Msgf("error parsing payloads: %v", err)
-			}
-
-			tests := []model.LoadTest{}
-			for _, p := range payloads {
-				if b, err := p.Data.MarshalJSON(); err != nil {
-					log.Error().Msgf("error destructing data from payload: %v", err)
-					continue
-				} else {
-					var t model.LoadTest
-					if err := json.Unmarshal(b, &t); err != nil {
-						log.Error().Msgf("error unmarshalling payload: %v", err)
-						continue
-					} else {
-						tests = append(tests, t)
-					}
-				}
-			}
+			//// grab payloads in database
+			//var payloads []model.Payload
+			//b, err := a.AppStorage.SelectAll(10, 0)
+			//if err != nil {
+			//	a.AppLogger.Error().Msgf("error getting payloads: %v", err)
+			//	continue
+			//}
+			//
+			//err = json.Unmarshal(b, &payloads)
+			//if err != nil {
+			//	a.AppLogger.Error().Msgf("error parsing payloads: %v", err)
+			//}
+			//
+			//tests := []model.LoadTestComplex{}
+			//for _, p := range payloads {
+			//	if b, err := p.Data.MarshalJSON(); err != nil {
+			//		log.Error().Msgf("error destructing data from payload: %v", err)
+			//		continue
+			//	} else {
+			//		var t model.LoadTestComplex
+			//		if err := json.Unmarshal(b, &t); err != nil {
+			//			log.Error().Msgf("error unmarshalling payload: %v", err)
+			//			continue
+			//		} else {
+			//			tests = append(tests, t)
+			//		}
+			//	}
+			//}
 
 			// run each test
-			for _, test := range tests {
-				a.AppLogger.Info().Msgf("running test: %v", test.Name)
-				results, err := a.RunTest(test)
+			for _, test := range a.AppConfig.Tests {
+				a.AppLogger.Info().Msgf("running test for: %v", test.Name)
+				results, err := a.RunTest(test.Name, *test.Duration, test.TPS, test.Target)
 				if err != nil {
 					a.AppLogger.Error().Msgf("error running test: %v", err)
-				} else {
-					a.AppLogger.Info().Msgf("%+v", *results)
-					// todo : add test results to database
+					continue
+				}
+
+				data, err := json.Marshal(*results)
+				if err != nil {
+					a.AppLogger.Error().Msgf("error converting test results to json: %v", err)
+					continue
+				}
+				if _, err := a.AppStorage.Insert(uuid.NewV4().String(), test.Name, data); err != nil {
+					a.AppLogger.Error().Msgf("error inserting test results: %v", err)
+					continue
 				}
 			}
 		}
 	}
 }
 
-func (a *App) RunTest(test model.LoadTest) (*vegeta.Metrics, error) {
+func (a *App) RunTest(name string, duration time.Duration, tps int, target string) (*vegeta.Metrics, error) {
 	// set up test
-	targetURL, _ := url.Parse(test.Url)
-	targets := vegeta.NewStaticTargeter(vegeta.Target{
-		Method: test.Method,
-		URL:    targetURL.String(),
-	})
+	b, err := ioutil.ReadFile(target)
+	if err != nil {
+		return nil, err
+	}
+	src := bytes.NewBuffer(b)
+	targeter := vegeta.NewHTTPTargeter(src, nil, nil)
 
-	rate := vegeta.Rate{Freq: test.TPS, Per: time.Second}
+	rate := vegeta.Rate{Freq: tps, Per: time.Second}
 	attacker := vegeta.NewAttacker()
 	defer attacker.Stop()
 
 	// run test
 	var metrics vegeta.Metrics
 
-	for res := range attacker.Attack(targets, rate, test.Duration.Duration, test.Name) {
+	for res := range attacker.Attack(targeter, rate, duration, name) {
 		metrics.Add(res)
 	}
 	metrics.Close()
@@ -218,6 +230,30 @@ func (a *App) InitCache() {
 	log.Info().Msgf("initializing cache with size of `%d` bytes", cacheSize)
 	cache := freecache.NewCache(cacheSize)
 	a.AppCache = cache
+	//if tests := a.AppConfig.Tests; tests != nil {
+	//	a.AppLogger.Info().Msg("adding tests to cache")
+	//	for _, test := range tests {
+	//		jsonTest, err := json.Marshal(test)
+	//		a.AppLogger.Info().Msgf("%v", test)
+	//		if err != nil && a.AppCache.Set([]byte(test.Name), jsonTest, 0) != nil {
+	//			a.AppLogger.Panic().Msg(err.Error())
+	//		} else {
+	//			a.AppLogger.Info().Msg("test added")
+	//		}
+	//	}
+	//	println("app has ", a.AppCache.EntryCount(), "entries")
+	//	iterator := a.AppCache.NewIterator()
+	//
+	//	for {
+	//		if item := iterator.Next(); item == nil {
+	//			break
+	//		} else {
+	//			println("key: ", string(item.Key))
+	//			println("value: ", string(item.Value))
+	//		}
+	//	}
+	//	println("app has ", a.AppCache.EntryCount(), "entries")
+	//}
 }
 
 // InitDatabase bootstraps app storage

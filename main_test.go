@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"testing"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/javking07/toadlester/model"
 
 	"github.com/javking07/toadlester/app"
@@ -26,6 +28,12 @@ func TestMain(m *testing.M) {
 	switch os.Getenv("CONFIG_SWITCH") {
 	case "drone":
 		config = conf.SaneDefaults()
+		log.Info().Msg("Configuring app for drone")
+		config.Database.Host = "database"
+		config.Database.DatabaseName = "test"
+		config.Database.User = "postgres"
+		config.Database.Password = "\"\""
+		config.Database.SslMode = "disable"
 	case "local":
 		config = conf.SaneDefaults()
 	default:
@@ -33,16 +41,7 @@ func TestMain(m *testing.M) {
 	}
 
 	a.AppConfig = config
-	log.Info().Msgf("%+v", a.AppConfig)
 	a.Bootstrap()
-
-	// fallback to default config, if file, or env vars not found
-	if config.Server == nil {
-		log.Info().Msg("no viable config available. falling back to sane defaults.\n")
-		a.AppConfig = conf.SaneDefaults()
-	} else {
-		a.AppConfig = config
-	}
 
 	log.Info().Msgf("database ssl status is %s", a.AppConfig.Database.SslMode)
 
@@ -119,7 +118,7 @@ func TestGet(t *testing.T) {
 		t.Errorf("got %v want %v", response.Code, http.StatusOK)
 	}
 
-	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	expected := `[{"id":"88b10a59-cab8-4fcc-b10a-15941d8845a5","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
 	if response.Body.String() != expected {
 		t.Errorf("got %v want %v", response.Body.String(), expected)
 	}
@@ -136,7 +135,7 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	payload := []byte(`{"id":"1","name":"updated","data":{"tps":200,"url":"http://example.com/updates","name":"updated","method":"POST","duration":"30s"}}`)
+	payload := []byte(`{"id":"88b10a59-cab8-4fcc-b10a-15941d8845a5","name":"updated","data":{"tps":200,"url":"http://example.com/updates","name":"updated","method":"POST","duration":"30s"}}`)
 	req = httptest.NewRequest("PUT", "/toadlester/v1/tests/1", bytes.NewBuffer(payload))
 	response = executeRequest(req)
 	var updatedTest model.Payload
@@ -166,7 +165,7 @@ func TestDelete(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("got %v want %v", response.Code, http.StatusOK)
 	}
-	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	expected := `[{"id":"88b10a59-cab8-4fcc-b10a-15941d8845a5","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
 	if response.Body.String() != expected {
 		t.Errorf("got %v want %v", response.Body.String(), expected)
 	}
@@ -206,7 +205,7 @@ func TestGetAll(t *testing.T) {
 		t.Errorf("got %v want %v", response.Code, http.StatusOK)
 	}
 
-	expected := `[{"id":"1","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}},{"id":"2","name":"1","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
+	expected := `[{"id":""88b10a59-cab8-4fcc-b10a-15941d8845a5","name":"0","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}},{"id":"2","name":"1","data":{"tps":100,"url":"http://example.com","name":"today","method":"GET","duration":"10s"}}]`
 	if response.Body.String() != expected {
 		t.Errorf("got %v want %v", response.Body.String(), expected)
 	}
@@ -240,9 +239,9 @@ func addData(count int) {
 	if count < 1 {
 		count = 1
 	}
-
+	mockUuid, _ := uuid.FromString("88b10a59-cab8-4fcc-b10a-15941d8845a5")
 	for i := 0; i < count; i++ {
-		_, err := a.AppStorage.Insert(strconv.Itoa(i), []byte(fmt.Sprintf(`{"tps": 100, "url": "http://example.com", "name": "today", "method": "GET", "duration": "10s"}`)))
+		_, err := a.AppStorage.Insert(mockUuid.String(), strconv.Itoa(i), []byte(fmt.Sprintf(`{"tps": 100, "url": "http://example.com", "name": "today", "method": "GET", "duration": "10s"}`)))
 		if err != nil {
 			log.Fatal().Msgf("error adding data: %v", err)
 		}

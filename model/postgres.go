@@ -44,9 +44,9 @@ func (p *PostgresStorage) Init(query string) error {
 	return nil
 }
 
-func (p *PostgresStorage) Insert(itemName string, payload []byte) (int64, error) {
-	query := `INSERT INTO tests (name,data) VALUES ($1,$2)`
-	result, err := p.database.Exec(query, itemName, payload)
+func (p *PostgresStorage) Insert(id string, itemName string, payload []byte) (int64, error) {
+	query := `INSERT INTO tests (id, name,data) VALUES ($1,$2, $3)`
+	result, err := p.database.Exec(query, id, itemName, payload)
 
 	if err != nil {
 		return 0, err

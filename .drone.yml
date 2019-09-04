@@ -1,0 +1,22 @@
+workspace:
+  base: /go
+  path: src/github.com/javking07/toadlester
+
+pipeline:
+  test:
+    image: golang:1.12
+    environment:
+      - CGO_ENABLED=0
+      - GOOS=linux
+      - GOARCH=amd64
+      - CONFIG_SWITCH=drone
+    commands:
+      - make check-gofmt
+      - go test -v
+      - make build TOADLESTERVERSION="${DRONE_COMMIT:0:8}" TOADLESTERBRANCH="${DRONE_BRANCH}" TOADLESTERCOMMIT="${DRONE_COMMIT}"
+services:
+  database:
+    image: postgres
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_DB=test

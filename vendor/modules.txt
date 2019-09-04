@@ -63,6 +63,8 @@ github.com/rs/zerolog
 github.com/rs/zerolog/log
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
+# github.com/satori/go.uuid v1.2.0
+github.com/satori/go.uuid
 # github.com/spf13/afero v1.2.1
 github.com/spf13/afero
 github.com/spf13/afero/mem
