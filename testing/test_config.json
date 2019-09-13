@@ -1,10 +1,4 @@
 {
-  "server": {
-    "port": "8080",
-    "cert": "certs/cert.crt",
-    "key": "certs/cert.key",
-    "tls": false
-  },
   "database": {
     "host": "localhost",
     "port": 5432,

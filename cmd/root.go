@@ -44,15 +44,14 @@ var rootCmd = &cobra.Command{
 			log.Panic().Msgf("error parsing config: %s", err.Error())
 		}
 
-		// fallback to default config, if file, or env vars not found
-		if config.Server == nil {
+		// fallback to default config, if config is blank
+		if config == nil {
 			log.Info().Msg("no viable config available. falling back to sane defaults.\n")
-			App.AppConfig = conf.SaneDefaults()
-		} else {
-			App.AppConfig = config
+			config = conf.SaneDefaults()
 		}
-		App.Bootstrap()
-		App.RunApp()
+
+		App.Bootstrap(config)
+		App.RunApp(config)
 	},
 }
 
