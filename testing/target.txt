@@ -1,0 +1,10 @@
+GET http://:6060/
+X-Header: 1
+X-Header: 2
+
+PUT https://:6060/123
+
+DELETE http://moo:443/boo
+
+POST http://foobar.org/fnord
+Authorization: x12345

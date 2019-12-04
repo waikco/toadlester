@@ -1,0 +1,21 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "user",
+    "password": "password",
+    "databaseName": "test",
+    "sslMode": "disable"
+  },
+  "cache": {
+    "size": 1000000
+  },
+  "logging": {
+    "level": "debug"
+  },
+  "timer": {
+    "interval": "10s"
+  },
+  "sleep": "1s",
+  "tests": [{"name":"test1","duration": "10s", "tps": 100, "target": "./testing/target.txt"}]
+}

@@ -5,19 +5,26 @@ import (
 	"time"
 )
 
-type Data struct {
+type Payload struct {
 	ID   string          `json:"id"`
 	Name string          `json:"name"`
 	Data json.RawMessage `json:"data"` // or could be []interface{}
-	//Data []interface{} `json:"data"`
+	//Payload interface{} `json:"data"`
 }
 
-type LoadTest struct {
-	Name     string `json:"name"`
-	Method   string `json:"method"`
-	Url      string `json:"url"`
-	Duration string `json:"duration"` // in seconds
-	TPS      int    `json:"tps"`
+type LoadTestSimple struct {
+	Name     string         `json:"name"`
+	Method   string         `json:"method"`
+	Url      string         `json:"url"`
+	Duration CustomDuration `json:"duration"` // in seconds
+	TPS      int            `json:"tps"`
+}
+
+type LoadTestComplex struct {
+	Name     string         `json:"name"`
+	Duration CustomDuration `json:"duration"` // in seconds
+	TPS      int            `json:"tps"`
+	Target   string         `json:"target"`
 }
 
 type LoadTestResults struct {
@@ -52,46 +59,12 @@ type LoadTestResults struct {
 }
 
 type Storage interface {
-	Select(string) error
-	Insert(string, []byte) error
-	Update(string, []byte) error
-	Delete(string) error
+	Init(string) error
+	Insert(string, string, []byte) (int64, error)
+	Select(int) ([]byte, error)
+	SelectAll(int, int) ([]byte, error)
+	Update(int, Payload) error
+	Delete(int) error
+	Purge(string) error // deletes all items from table
 	Healthy() error
-}
-
-func (d *Data) Set(storage Storage, payload interface{}) error {
-	err := storage.Insert(d.Name, d.Data)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Data) Get(storage Storage, table string) error {
-
-	err := storage.Select(d.Name)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Data) Change(storage Storage, table string) error {
-	err := storage.Update(d.Name, d.Data)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Data) Remove(storage Storage) error {
-	err := storage.Delete(d.Name)
-
-	if err != nil {
-		return err
-	}
-	return nil
 }

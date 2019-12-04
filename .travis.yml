@@ -1,0 +1,12 @@
+language: go
+
+go:
+  - 1.13
+
+services:
+  - postgresql
+
+env:
+  global:
+    - POSTGRES_USER=user
+    - POSTGRES_DB=test

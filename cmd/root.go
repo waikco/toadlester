@@ -39,20 +39,19 @@ var rootCmd = &cobra.Command{
 		   that can be deployed anywhere a user expects to receive requests from`,
 	Run: func(cmd *cobra.Command, args []string) {
 		viperInstance := viper.GetViper()
-		err := viperInstance.UnmarshalExact(&config)
+		err := viperInstance.Unmarshal(&config)
 		if err != nil {
 			log.Panic().Msgf("error parsing config: %s", err.Error())
 		}
 
-		// fallback to default config, if file, or env vars not found
-		if config.Server == nil {
+		// fallback to default config, if config is blank
+		if config == nil {
 			log.Info().Msg("no viable config available. falling back to sane defaults.\n")
-			App.AppConfig = conf.SaneDefaults()
-		} else {
-			App.AppConfig = config
+			config = conf.SaneDefaults()
 		}
 
-		App.RunApp()
+		App.Bootstrap(config)
+		App.RunApp(config)
 	},
 }
 
