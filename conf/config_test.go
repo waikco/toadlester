@@ -1,9 +1,10 @@
 package conf
 
 import (
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSaneDefaults(t *testing.T) {
@@ -13,11 +14,11 @@ func TestSaneDefaults(t *testing.T) {
 		"proper defaults": {
 			want: &Config{
 				Database: &DatabaseConfig{
-					Host:         "127.0.0.1",
+					Host:         "localhost",
 					Port:         5432,
-					User:         "user",
-					Password:     "password",
-					DatabaseName: "test",
+					User:         "postgres",
+					Password:     "postgres",
+					DatabaseName: "postgres",
 					SslMode:      "disable",
 					SslFactory:   "org.postgresql.ssl.NonValidatingFactory",
 				},
@@ -39,9 +40,7 @@ func TestSaneDefaults(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if got := SaneDefaults(); !reflect.DeepEqual(got, test.want) {
-				t.Errorf("SaneDefaults() = %v, want %v", got, test.want)
-			}
+			assert.Equal(t, test.want, SaneDefaults())
 		})
 	}
 }
