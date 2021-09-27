@@ -2,9 +2,9 @@
   "database": {
     "host": "localhost",
     "port": 5432,
-    "user": "user",
-    "password": "password",
-    "databaseName": "test",
+    "user": "postgres",
+    "password": "postgres",
+    "databaseName": "postgres",
     "sslMode": "disable"
   },
   "cache": {
@@ -17,5 +17,12 @@
     "interval": "10s"
   },
   "sleep": "1s",
-  "tests": [{"name":"test1","duration": "10s", "tps": 100, "target": "./testing/target.txt"}]
+  "tests": [
+    {
+      "name": "test1",
+      "duration": "10s",
+      "tps": 100,
+      "target": "./testing/target.txt"
+    }
+  ]
 }
