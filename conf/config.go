@@ -47,11 +47,11 @@ func SaneDefaults() *Config {
 	backgroundInterval := time.Second * 60
 	var config = &Config{
 		Database: &DatabaseConfig{
-			Host:         "127.0.0.1",
+			Host:         "localhost",
 			Port:         5432,
-			User:         "user",
-			Password:     "password",
-			DatabaseName: "test",
+			User:         "postgres",
+			Password:     "postgres",
+			DatabaseName: "postgres",
 			SslMode:      "disable",
 			SslFactory:   "org.postgresql.ssl.NonValidatingFactory",
 		},

@@ -45,15 +45,16 @@ func (a *App) Bootstrap(c *conf.Config) {
 	}
 	time.Sleep(*c.Sleep)
 
+	a.Logger.Info().Msgf("initializing database")
 	a.Storage, err = InitDatabase(c)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("error preparing storage")
 	}
 
 	a.Channels = InitChans()
 }
 
-// RunApp starts app functionality and facilitates provides a graceful shutdown.
+// RunApp starts app functionality and ensures a graceful shutdown.
 func (a *App) RunApp(c *conf.Config) {
 	var gracefulStop = make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
@@ -147,7 +148,7 @@ func InitDatabase(c *conf.Config) (model.Storage, error) {
 	if err != nil {
 		return nil, err
 	} else {
-		log.Info().Msgf("connected to database on port %v", c.Database.Port)
+		log.Info().Msgf("database ssl status is %s", c.Database.SslMode)
 	}
 	return db, nil
 }
